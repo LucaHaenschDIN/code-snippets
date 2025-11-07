@@ -16,14 +16,14 @@ TWUNINST=false
 
 chmod 0644 "$TWHDEB"
 
-printf "\nTeamviewer Host Installer für Ubuntu.\n"
+#printf "\nTeamviewer Host Installer für Ubuntu.\n"
 
 Help()
 {
     printf "\nInformation: Wenn Sie nicht -p festlegen, wird ein zufälliges Passwort erstellt, das Sie aber jederzeit mit den Skript ändern können.\n-h : Zeigt Ihnen diese Seite.\n-p : Legen Sie Ihr eigenes Passwort fest.\n-d : Überspringen Sie die Installation und richten Sie direkt den Teamviewer Host ein.\n-u : Deinstalliert Teamviewer Host und die anhängenden Konfigurationen.\n\n"
 }
 
-while getopts "d" option; do
+while getopts ":dpuh" option; do
   case $option in
     d)
       TWSKIPDL=true
@@ -45,6 +45,7 @@ while getopts "d" option; do
   esac
 done
 
+
 if [[ $TWUNINST == true && TWINSTALLED == "install ok installed" ]]; then
   read -p "Möchten Sie Teamviewer Host auf diesen Gerät deinstallieren? [Y/n]: " REPLYUNINST
   if [[ $REPLYUNINST =~ ^[Yy]$ ]]; then
@@ -61,23 +62,20 @@ else
   exit 0
 fi
 
-read -p "Möchten Sie Teamviewer Host auf diesen Gerät installieren? Weitere Einstellungen finden sie mit den Startbefehl '-h'. [Y/n]: " REPLYINST
-echo
+if [[ $TWSKIPDL == true  && $TWINSTALLED != "install ok installed" ]]; then
+  echo "Teamviewer wurde nicht gefunden, trotz der überspringung der Installation. Eine nachträgliche Installation folgt."
+  TWSKIPDL=false
+fi
 
+if [[ "$(whoami)" != "root" ]]; then
+  echo "Das Skript muss für die Installation mit sudo ausgeführt werden."
+  exit 0
+fi
 
-if [[ $REPLYINST =~ ^[Yy]$ ]]; then
-
-  if [[ $TWSKIPDL == true  && $TWINSTALLED != "install ok installed" ]]; then
-    echo "Teamviewer wurde nicht gefunden, trotz der überspringung der Installation. Eine nachträgliche Installation folgt."
-    TWSKIPDL=false
-  fi
-
-  if [[ "$(whoami)" != "root" ]]; then
-    echo "Das Skript muss für die Installation mit sudo ausgeführt werden."
-    exit 0
-  fi
-
-  if [[ $TWSKIPDL == false ]]; then
+if [[ $TWSKIPDL == false ]]; then
+  read -p "Möchten Sie Teamviewer Host auf diesen Gerät installieren? Weitere Einstellungen finden sie mit den Startbefehl '-h'. [Y/n]: " REPLYINST
+  echo
+  if [[ $REPLYINST =~ ^[Yy]$ ]]; then
     if [[ -f /etc/os-release ]]; then
       source /etc/os-release
       if [[ "$ID" == "ubuntu" || "$ID_LIKE" == "ubuntu" ]]; then
@@ -92,27 +90,25 @@ if [[ $REPLYINST =~ ^[Yy]$ ]]; then
       exit -1
     fi
   fi
+fi
 
-  TWID="$(sudo teamviewer info | grep 'TeamViewer ID' | awk '{print $NF}')"
+TWID="$(sudo teamviewer info | grep 'TeamViewer ID' | awk '{print $NF}')"
 
-  if [[ $TWSETCONF == false ]]; then
-    echo "Teamviewer wird eingerichtet, bitte warten Sie einen Moment..."
-    teamviewer passwd "$PASSWORD" > /dev/null
-    printf "\n\n\nTeamviewer wurde erfolgreich installiert!\n\nIhre Teamviewer ID: $TWID\nIhr Passwort: $PASSWORD\n"
-  elif [[ $TWSETCONF == true ]]; then
-    printf "\nBitte geben Sie das Passwort ein, was Sie zum anmelden verwenden möchten.\n\n"
-    while true; do
-      read -s -p "Passwort: " inputPass1
-      echo
-      read -s -p "Passwort bestätigen: " inputPass2
-      echo
-      [ "$inputPass1" == "$inputPass2" ] && PASSWORD="$inputPass2" && break
-      echo "Sie haben ein falsches Passwort eingegeben."
-    done
-    echo "Ihr Passwort wird festgelegt, dies kann einen Moment dauern..."
-    teamviewer passwd "$PASSWORD" > /dev/null
-    printf "\n\n\nTeamviewer wurde erfolgreich installiert!\n\nIhre Teamviewer ID: $TWID\nPasswort: Eigenes Password festgelegt."
-  fi
-else
-  exit 0
+if [[ $TWSETCONF == false ]]; then
+  echo "Teamviewer wird eingerichtet, bitte warten Sie einen Moment..."
+  teamviewer passwd "$PASSWORD" > /dev/null
+  printf "\n\n\nTeamviewer wurde erfolgreich installiert!\n\nIhre Teamviewer ID: $TWID\nIhr Passwort: $PASSWORD\n"
+elif [[ $TWSETCONF == true ]]; then
+  printf "\nBitte geben Sie das Passwort ein, was Sie zum anmelden verwenden möchten.\n\n"
+  while true; do
+    read -s -p "Passwort: " inputPass1
+    echo
+    read -s -p "Passwort bestätigen: " inputPass2
+    echo
+    [ "$inputPass1" == "$inputPass2" ] && PASSWORD="$inputPass2" && break
+    echo "Sie haben ein falsches Passwort eingegeben."
+  done
+  echo "Ihr Passwort wird festgelegt, dies kann einen Moment dauern..."
+  teamviewer passwd "$PASSWORD" > /dev/null
+  printf "\n\n\nTeamviewer wurde erfolgreich installiert!\n\nIhre Teamviewer ID: $TWID\nPasswort: Eigenes Password festgelegt.\n"
 fi
